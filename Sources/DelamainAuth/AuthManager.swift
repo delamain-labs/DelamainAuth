@@ -83,8 +83,70 @@ public actor AuthManager {
     }
 
     /// Clears the current session.
-    public func signOut() {
+    ///
+    /// - Parameter clearPersisted: Whether to also clear the persisted session from storage.
+    ///   Defaults to `true` to ensure clean sign out.
+    public func signOut(clearPersisted: Bool = true) async throws {
         self.session = nil
+
+        if clearPersisted {
+            try await storage.remove(sessionKey)
+        }
+    }
+
+    // MARK: - Session Persistence
+
+    /// Persists the current session to storage.
+    ///
+    /// Call this after sign-in to enable session restoration across app launches.
+    ///
+    /// - Throws: `AuthError.notAuthenticated` if there's no session to persist.
+    /// - Throws: `AuthError.storageFailed` if storage fails.
+    public func persistSession() async throws {
+        guard let session else {
+            throw AuthError.notAuthenticated
+        }
+
+        do {
+            try await storage.set(session, forKey: sessionKey)
+        } catch {
+            throw AuthError.storageFailed(error.localizedDescription)
+        }
+    }
+
+    /// Loads a previously persisted session from storage.
+    ///
+    /// If a session already exists in memory, this does nothing and returns false.
+    ///
+    /// - Returns: `true` if a session was loaded, `false` otherwise.
+    /// - Throws: `AuthError.storageFailed` if storage fails.
+    @discardableResult
+    public func loadSession() async throws -> Bool {
+        // Don't overwrite existing session
+        guard session == nil else {
+            return false
+        }
+
+        do {
+            if let stored: AuthSession = try await storage.get(sessionKey) {
+                self.session = stored
+                return true
+            }
+            return false
+        } catch {
+            throw AuthError.storageFailed(error.localizedDescription)
+        }
+    }
+
+    /// Clears any persisted session from storage without affecting the current session.
+    ///
+    /// - Throws: `AuthError.storageFailed` if storage fails.
+    public func clearPersistedSession() async throws {
+        do {
+            try await storage.remove(sessionKey)
+        } catch {
+            throw AuthError.storageFailed(error.localizedDescription)
+        }
     }
 
     /// Updates the token in the current session.
