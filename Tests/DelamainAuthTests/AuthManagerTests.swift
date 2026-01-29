@@ -55,7 +55,7 @@ struct AuthManagerTests {
         let session = AuthSession(token: token, provider: .apple)
 
         await manager.setSession(session)
-        await manager.signOut()
+        try await manager.signOut()
 
         let retrieved = await manager.currentSession
         #expect(retrieved == nil)
@@ -68,7 +68,7 @@ struct AuthManagerTests {
         let session = AuthSession(token: token, provider: .apple)
 
         await manager.setSession(session)
-        await manager.signOut()
+        try await manager.signOut()
 
         let isAuthenticated = await manager.isAuthenticated
         #expect(isAuthenticated == false)
