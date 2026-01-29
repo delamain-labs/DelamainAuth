@@ -1,71 +1,76 @@
 # DelamainAuth Roadmap
 
-This document outlines planned features and improvements for DelamainAuth.
+## v1.0.0 (Current) ✅
 
-## v1.0.0 (In Progress)
+### Core Features - DONE
+- [x] Token model with expiration handling
+- [x] AuthSession with provider tracking
+- [x] AuthUser for user info storage
+- [x] AuthManager actor for session management
+- [x] Session persistence with Codable
+- [x] Comprehensive AuthError types
+- [x] Swift 6 / Sendable compliance
 
-### Core Features
-- [ ] AuthManager actor with session state
-- [ ] Token model (access, refresh, expiration)
-- [ ] Credential storage via DelamainStorage
-- [ ] AuthError with LocalizedError conformance
-- [ ] CI/CD pipeline (build, test, lint)
+### Authentication Providers - DONE
+- [x] Sign in with Apple (AppleSignInProvider)
+  - [x] ASAuthorizationController integration
+  - [x] Credential state checking
+  - [x] User info extraction
+- [x] OAuth 2.0 / PKCE (OAuthProvider)
+  - [x] RFC 7636 PKCE implementation
+  - [x] ASWebAuthenticationSession integration
+  - [x] Token exchange and refresh
+- [x] Biometric Authentication (BiometricAuthenticator)
+  - [x] Face ID / Touch ID support
+  - [x] LAContext integration
+  - [x] Availability checking
 
-### Token Management
-- [ ] Secure token storage (Keychain)
-- [ ] Automatic token refresh
-- [ ] Token expiration tracking
-- [ ] Logout / token revocation
-
-### Auth Providers
-- [ ] Apple Sign-In integration
-- [ ] OAuth 2.0 / PKCE flow
-- [ ] Biometric authentication (Face ID / Touch ID)
-
-### Quality
-- [ ] Comprehensive test coverage
-- [ ] Documentation and examples
-- [ ] SwiftLint integration
-
----
-
-## v1.1.0 (Next)
-
-### Enhancements
-- [ ] **Session persistence** — Restore sessions across app launches
-- [ ] **Multi-account support** — Manage multiple authenticated accounts
-- [ ] **Token interceptor** — DelamainNetworking integration
-- [ ] **Auth state observation** — Combine/AsyncSequence publishers
+## v1.1.0 (Planned)
 
 ### Additional Providers
-- [ ] **Google Sign-In** — Native Google authentication
-- [ ] **Custom providers** — Protocol for custom auth backends
+- [ ] Google Sign-In integration
+- [ ] Facebook Login integration
+- [ ] Custom OAuth provider templates
+
+### Enhanced Features
+- [ ] Automatic token refresh scheduling
+- [ ] Refresh token rotation support
+- [ ] Multi-account session management
+- [ ] Session migration utilities
+
+### Security
+- [ ] Token encryption at rest
+- [ ] Jailbreak/root detection integration
+- [ ] Certificate pinning support
 
 ## v1.2.0 (Future)
 
-### Advanced Features
-- [ ] **MFA support** — Two-factor authentication flows
-- [ ] **Passkeys** — WebAuthn / passkey support
-- [ ] **JWT utilities** — Decode and validate JWTs
-- [ ] **Rate limiting** — Handle auth rate limits gracefully
+### Enterprise Features
+- [ ] SSO / SAML support
+- [ ] MFA integration
+- [ ] Device binding
+- [ ] Session revocation via push
 
 ### Developer Experience
-- [ ] **SwiftUI views** — Pre-built sign-in buttons
-- [ ] **Auth middleware** — Request authentication middleware
+- [ ] SwiftUI property wrappers (@AuthState)
+- [ ] Combine publishers for session changes
+- [ ] Mock providers for testing
+- [ ] Analytics integration hooks
 
----
+## Testing Coverage
 
-## Contributing
+Current: 95 tests
+- TokenTests: Token expiration, refresh, encoding
+- AuthSessionTests: Session validity, updates, encoding
+- AuthManagerTests: State management, persistence
+- BiometricAuthenticatorTests: Availability, type detection
+- AppleSignInTests: Result conversions, session creation
+- OAuthTests: PKCE generation, config, URL safety
+- AuthErrorTests: Error types, descriptions, equality
+- SessionPersistenceTests: Storage, loading, recovery
 
-Want to help? Check our [issues](https://github.com/delamain-labs/DelamainAuth/issues) or open a discussion for new feature ideas.
+## Breaking Changes Policy
 
-## Related Packages
-
-- [DelamainCore](https://github.com/delamain-labs/DelamainCore) — Shared utilities and extensions
-- [DelamainNetworking](https://github.com/delamain-labs/DelamainNetworking) — Async networking with retries
-- [DelamainLogger](https://github.com/delamain-labs/DelamainLogger) — Logging framework
-- [DelamainStorage](https://github.com/delamain-labs/DelamainStorage) — Local data persistence
-
----
-
-*Last updated: 2026-01-29*
+- v1.x: No breaking changes to public API
+- Deprecations marked with `@available(*, deprecated)`
+- Migration guides provided for major versions

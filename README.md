@@ -8,10 +8,10 @@ Type-safe authentication for Swift 6.
 
 ## Features
 
-- **Token Management** — Secure storage and automatic refresh of access/refresh tokens
-- **Session Handling** — Login state tracking, expiration, auto-logout
-- **OAuth 2.0 / OIDC** — Authorization code flow with PKCE
-- **Apple Sign-In** — Native ASAuthorizationController integration
+- **Token Management** — Secure storage and lifecycle management of access/refresh tokens
+- **Session Handling** — Login state tracking, persistence, expiration detection
+- **OAuth 2.0 / PKCE** — Full authorization code flow with RFC 7636 PKCE
+- **Sign in with Apple** — Native ASAuthorizationController integration
 - **Biometric Auth** — Face ID / Touch ID via LocalAuthentication
 - **Swift 6 Ready** — Full Sendable compliance and actor isolation
 
@@ -34,7 +34,7 @@ Or in Xcode: File → Add Packages → Enter the repository URL.
 ```swift
 import DelamainAuth
 
-// Create auth manager
+// Create auth manager with optional storage for persistence
 let auth = AuthManager()
 
 // Check login state
@@ -42,105 +42,193 @@ if await auth.isAuthenticated {
     print("Welcome back!")
 }
 
-// Login with Apple
-let session = try await auth.signIn(with: .apple)
-
-// Access token for API calls
+// Get current token for API calls
 let token = try await auth.currentToken()
+print("Authorization: \(token.authorizationHeader)")
 
 // Logout
-await auth.signOut()
+await auth.signOut(clearPersistedSession: true)
 ```
 
 ## Token Management
 
-DelamainAuth handles token lifecycle automatically:
-
 ```swift
-// Tokens are stored securely in Keychain
-let auth = AuthManager(storage: KeychainStorage())
+// Create a token
+let token = Token(
+    accessToken: "eyJ...",
+    tokenType: "Bearer",
+    expiresAt: Date().addingTimeInterval(3600),
+    refreshToken: "refresh_token_here"
+)
 
-// Automatic refresh when token expires
-let token = try await auth.currentToken() // Refreshes if needed
-
-// Manual refresh
-try await auth.refreshToken()
-
-// Token expiration info
-if let expiresAt = await auth.tokenExpiresAt {
-    print("Token expires: \(expiresAt)")
+// Check expiration
+if token.isExpired {
+    print("Token needs refresh")
 }
+
+// Check if expiring soon (within 5 minutes)
+if token.willExpire(in: 300) {
+    print("Token expiring soon")
+}
+
+// Get authorization header
+let header = token.authorizationHeader // "Bearer eyJ..."
 ```
 
-## OAuth 2.0 / PKCE
+## OAuth 2.0 with PKCE
+
+Full OAuth 2.0 authorization code flow with RFC 7636 PKCE support:
 
 ```swift
 let config = OAuthConfig(
-    clientId: "your-client-id",
+    clientID: "your-client-id",
     authorizationURL: URL(string: "https://auth.example.com/authorize")!,
     tokenURL: URL(string: "https://auth.example.com/token")!,
     redirectURL: URL(string: "myapp://callback")!,
-    scopes: ["openid", "profile", "email"]
+    scopes: ["openid", "profile", "email"],
+    usePKCE: true  // Enabled by default
 )
 
-let auth = AuthManager(oauthConfig: config)
-let session = try await auth.signIn(with: .oauth)
+// Sign in
+let session = try await auth.signInWithOAuth(config: config)
+print("Authenticated as: \(session.provider)")
+
+// Token refresh
+let provider = OAuthProvider(config: config)
+let newToken = try await provider.refreshToken(oldToken.refreshToken!)
 ```
 
-## Apple Sign-In
+## Sign in with Apple
+
+Native Apple authentication with ASAuthorizationController:
 
 ```swift
-let session = try await auth.signIn(with: .apple)
+// Basic sign-in
+let result = try await auth.signInWithApple()
 
-// Access user info (first sign-in only)
-if let appleUser = session.appleUser {
-    print("Name: \(appleUser.fullName)")
-    print("Email: \(appleUser.email)")
+// Access user info (only on first sign-in)
+if let user = result.user {
+    print("User ID: \(user.id)")
+    print("Email: \(user.email ?? "not shared")")
+    print("Name: \(user.fullName ?? "not shared")")
 }
+
+// Convert to session for storage
+let session = result.toSession()
+
+// Check credential state for existing users
+let provider = AppleSignInProvider()
+let isValid = await provider.checkCredentialState(for: userID)
 ```
 
 ## Biometric Authentication
 
+Face ID / Touch ID support via LocalAuthentication:
+
 ```swift
+let biometric = BiometricAuthenticator()
+
 // Check availability
-if await auth.canUseBiometrics {
-    // Unlock with Face ID / Touch ID
-    try await auth.unlock(with: .biometric)
+if await biometric.isAvailable() {
+    let type = await biometric.biometricType()
+    print("Available: \(type.name)")  // "Face ID" or "Touch ID"
 }
 
-// Require biometric for sensitive operations
-try await auth.requireBiometric {
-    // This block only runs after successful biometric auth
-    try await performSensitiveOperation()
+// Authenticate
+do {
+    try await biometric.authenticate(reason: "Unlock your account")
+    print("Authentication successful")
+} catch AuthError.cancelled {
+    print("User cancelled")
+} catch AuthError.biometricNotAvailable {
+    print("Biometrics not configured")
+} catch {
+    print("Authentication failed: \(error)")
 }
 ```
 
-## Network Integration
+## Session Persistence
 
-Use with DelamainNetworking for automatic token injection:
+Persist sessions across app launches:
 
 ```swift
-import DelamainAuth
-import DelamainNetworking
-
+// Create manager with storage
 let auth = AuthManager()
-let client = NetworkClient(authProvider: auth)
 
-// Requests automatically include Authorization header
-// Token refreshes automatically on 401
-let user: User = try await client.get("/api/user")
+// Save current session
+try await auth.persistSession(to: storage)
+
+// Load on app launch
+let loaded = await auth.loadSession(from: storage)
+if loaded {
+    print("Session restored")
+}
+
+// Or initialize with auto-load
+let auth = await AuthManager.withPersistedSession(from: storage)
+```
+
+## AuthSession
+
+Track complete authentication state:
+
+```swift
+let session = AuthSession(
+    token: token,
+    user: AuthUser(id: "123", email: "user@example.com"),
+    provider: .apple,
+    createdAt: Date()
+)
+
+// Check validity
+if session.isValid {
+    print("Session active")
+}
+
+// Update token
+let updated = session.withUpdatedToken(newToken)
+```
+
+## Error Handling
+
+All auth operations throw typed `AuthError`:
+
+```swift
+do {
+    let token = try await auth.currentToken()
+} catch AuthError.notAuthenticated {
+    // Redirect to login
+} catch AuthError.tokenExpired {
+    // Token needs refresh
+} catch AuthError.cancelled {
+    // User cancelled auth flow
+} catch AuthError.biometricNotAvailable {
+    // Fall back to passcode
+} catch AuthError.providerError(let message) {
+    print("Provider error: \(message)")
+} catch AuthError.networkError(let message) {
+    print("Network error: \(message)")
+}
 ```
 
 ## Thread Safety
 
-DelamainAuth is built on Swift actors:
+Built for Swift 6 concurrency:
 
 ```swift
-// Safe from any context
+// AuthManager is an actor - safe from any context
+let auth = AuthManager()
+
 await withTaskGroup(of: Void.self) { group in
-    group.addTask { await auth.isAuthenticated }
-    group.addTask { try? await auth.currentToken() }
+    group.addTask { _ = await auth.isAuthenticated }
+    group.addTask { _ = try? await auth.currentToken() }
     group.addTask { await auth.signOut() }
+}
+
+// Token, AuthSession, AuthUser are all Sendable
+let session: AuthSession = // ...
+Task.detached {
+    print(session.token.accessToken)
 }
 ```
 
