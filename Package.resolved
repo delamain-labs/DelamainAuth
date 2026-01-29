@@ -1,0 +1,24 @@
+{
+  "originHash" : "35960f3118edb69a278ac803b4e6db9a3db782df2f67bd5fc212acd895a5773c",
+  "pins" : [
+    {
+      "identity" : "delamaincore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/delamain-labs/DelamainCore.git",
+      "state" : {
+        "revision" : "fe2fac6c654fc8282c4805ebf1dd5cf2c3b51a85",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "delamainstorage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/delamain-labs/DelamainStorage.git",
+      "state" : {
+        "revision" : "1af7ef5501a1c3ee67e3ae2426a5412278eff021",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}
